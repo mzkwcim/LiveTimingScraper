@@ -1,15 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using HtmlAgilityPack;
-using iText.Kernel.Pdf;
-using iText.Kernel.Pdf.Canvas.Parser;
-using iText.Kernel.Pdf.Canvas.Parser.Listener;
-using LiveTimingScraper;
+﻿using HtmlAgilityPack;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium;
 
@@ -18,12 +7,12 @@ internal class Program
 {
     public static void Main(string[] args)
     {
-        List<string> athletes = ["Bartoszewska Marta", "Berg Maria", "Dopierala Piotr", "Drost Stanislaw", "Heymann Patryk", 
+        List<string> athletes = ["Bartoszewska Marta", "Berg Maria", "Dopierala Piotr", "Drost Stanislaw", "Heymann Patryk",
             "Jaglowski Dawid", "Krzesniak Jakub", "Lechowicz Mikolaj", "Madelska Natalia", "Makowska Blanka", "Moros Bruno",
-            "Olejniczak Mateusz", "Polody Estera", "Siepka Zofia", "Smykaj Antonina", "Szmidchen Alan", "Zakens Gabriela", 
-            "Horowska Zuzanna", "Kubiak Zuzanna", "Kurek Antoni", "Malicka Maja", "Mroczek Dominik", "Nogalska Iga", 
+            "Olejniczak Mateusz", "Polody Estera", "Siepka Zofia", "Smykaj Antonina", "Szmidchen Alan", "Zakens Gabriela",
+            "Horowska Zuzanna", "Kubiak Zuzanna", "Kurek Antoni", "Malicka Maja", "Mroczek Dominik", "Nogalska Iga",
             "Sewilo Martyna", "Sumisławska Aleksandra"];
-        for (int k = 7; k < athletes.Count; k++)
+        for (int k = 19; k < athletes.Count; k++)
         {
             IWebDriver driver = new ChromeDriver();
 
@@ -35,37 +24,25 @@ internal class Program
             IWebElement firstNameBox = driver.FindElement(By.CssSelector("input#athlete_firstname.inputMedium"));
             firstNameBox.SendKeys(athletes[k].Split(" ")[1]);
             Thread.Sleep(3000);
-            var resultRows = driver.FindElements(By.CssSelector("table.athleteSearch tr.athleteSearch0, table.athleteSearch tr.athleteSearch1"));
-            var athleteLink = "";
-            // Sprawdź każdy wiersz, czy zawiera klub "KS POSNANIA Poznan"
-            foreach (var row in resultRows)
-            {
-                var club = row.FindElement(By.CssSelector("td.club")).Text;
-                if (club.Contains("KS POSNANIA Poznan"))
-                {
-                    // Znaleziono osobę o klubie "KS POSNANIA Poznan"
-                    athleteLink = row.FindElement(By.CssSelector("td.name a")).GetAttribute("href");
-                    Console.WriteLine($"Znaleziono osobę o klubie KS POSNANIA Poznan. URL: {athleteLink}");
-                    break; // Zakończ pętlę, gdy znajdziesz pierwszą osobę pasującą do kryteriów
-                }
-                else
-                {
-                    break;
-                }
-            }
+            IWebElement athleteButton = driver.FindElement(By.XPath("//*[@id=\"searchResult\"]/table/tbody/tr[2]/td[2]/a"));
+            athleteButton.Click();
             
             Thread.Sleep(2000);
-            if (athleteLink == null)
+            IWebElement club = driver.FindElement(By.Id("nationclub"));
+            int adder = 2;
+            while (!club.Text.Contains("KS POSNANIA Poznan"))
             {
-                Console.WriteLine("Adres URL aktualnej strony: " + driver.Url + $"&result={DateTime.Now.Year}");
-                IWebElement athleteButton = driver.FindElement(By.XPath("//*[@id=\"searchResult\"]/table/tbody/tr[2]/td[2]/a"));
+                Console.WriteLine("zawieram?");
+                Thread.Sleep(1000);
+                adder++;
+                athleteButton = driver.FindElement(By.XPath($"//*[@id=\"searchResult\"]/table/tbody/tr[{adder}]/td[2]/a"));
                 athleteButton.Click();
-                Thread.Sleep(2000);
+                club = driver.FindElement(By.Id("nationclub")); 
             }
-            string athleteUrl = athleteLink + $"&result={DateTime.Now.Year}";
+            string athleteUrl = driver.Url + $"&result={DateTime.Now.Year}";
             Console.WriteLine("Adres URL aktualnej strony: " + athleteUrl);
             driver.Navigate().GoToUrl(athleteUrl);
-            Thread.Sleep(2000);
+
             var distances = Loader(athleteUrl).DocumentNode.SelectNodes("//td[@class='city']//a[@href]");
             var dates = Loader(athleteUrl).DocumentNode.SelectNodes("//td[@class='date']");
             string fullname = $"{athletes[k].Split(" ")[0].ToUpper()}, {athletes[k].Split(" ")[1].ToLower()}";
@@ -81,7 +58,7 @@ internal class Program
                     IWebElement element = driver.FindElement(By.XPath("//*[@id=\"content\"]/table/tbody/tr/td/form/table[3]/tbody/tr[1]/th[1]"));
 
                     // Pobierz tekst spod elementu
-                    string [] text = element.Text.Replace(",","").Split(" ")[0..3];
+                    string[] text = element.Text.Replace(",", "").Split(" ")[0..3];
                     string distance = text[1] + TranslateStroke(text[2]) + TranslateGender(text[0]);
 
 
@@ -113,7 +90,7 @@ internal class Program
     }
     public static string TranslateStroke(string key)
     {
-        
+
         switch (key)
         {
             case "Freestyle": return " Dowolnym";
